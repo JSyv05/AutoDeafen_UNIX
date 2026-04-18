@@ -17,6 +17,14 @@
     #define GENERIC_WRITE O_WRONLY
     #define CancelIo pthread_cancel
     #define DWORD std::uint32_t
+    #define INFINITE -1
+    #define TRUE true
+    #define FALSE false
+    #define WAIT_OBJECT_0 0
+    #define WAIT_TIMEOUT 1
+    #define ERROR_IO_PENDING EAGAIN
+    #define OPEN_EXISTING 0
+    #define FILE_FLAG_OVERLAPPED 0 
 
 #include <thread>
 #include <atomic>
