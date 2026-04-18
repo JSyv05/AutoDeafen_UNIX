@@ -25,6 +25,7 @@
     #define ERROR_IO_PENDING EAGAIN
     #define OPEN_EXISTING 0
     #define FILE_FLAG_OVERLAPPED 0 
+#endif
 
 #include <thread>
 #include <atomic>

@@ -1,4 +1,7 @@
-
+#include "ipc.h"
+#include "helpers.h"
+#include "gui.h"
+#include <string.h>
 std::string CLIENT_ID = "";
 std::string CLIENT_SECRET = "";
 
@@ -21,10 +24,6 @@ std::string responseError;
 
 #include <Geode/Geode.hpp>
 using namespace geode::prelude;
-
-#include "ipc.h"
-#include "helpers.h"
-#include "gui.h"
 
 #include <Geode/modify/MenuLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
