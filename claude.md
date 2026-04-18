@@ -81,9 +81,8 @@ cpp#else
         return fd;
     }
 
-    The key insight is that since ReadFile/WriteFile are blocking on POSIX, WaitForSingleObject and GetOverlappedResult become no-ops that just return success — the waiting already happened in the read/write call itself.
-    You'll also need to fix connectToDiscord since the pipe path format is different on POSIX, but you can do that with a small #ifdef just in that one function:
-    
+The key insight is that since ReadFile/WriteFile are blocking on POSIX, WaitForSingleObject and GetOverlappedResult become no-ops that just return success — the waiting already happened in the read/write call itself. You'll also need to fix connectToDiscord since the pipe path format is different on POSIX, but you can do that with a small #ifdef just in that one function:
+
 cppinline HANDLE connectToDiscord() {
     for (int i = 0; i < 10; i++) {
     #ifdef _WIN32
