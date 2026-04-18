@@ -80,3 +80,21 @@ cpp#else
         }
         return fd;
     }
+
+    The key insight is that since ReadFile/WriteFile are blocking on POSIX, WaitForSingleObject and GetOverlappedResult become no-ops that just return success — the waiting already happened in the read/write call itself.
+You'll also need to fix connectToDiscord since the pipe path format is different on POSIX, but you can do that with a small #ifdef just in that one function:
+cppinline HANDLE connectToDiscord() {
+    for (int i = 0; i < 10; i++) {
+    #ifdef _WIN32
+        std::wstring pipe = L"\\\\?\\pipe\\discord-ipc-" + std::to_wstring(i);
+        HANDLE hPipe = CreateFileW(pipe.c_str(), GENERIC_READ|GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
+    #else
+        const char* tmp = getenv("XDG_RUNTIME_DIR") ?: getenv("TMPDIR") ?: "/tmp";
+        std::wstring pipe = std::wstring(tmp, tmp + strlen(tmp)) + L"/discord-ipc-" + std::to_wstring(i);
+        HANDLE hPipe = CreateFileW(pipe.c_str(), 0, 0, nullptr, 0, 0, nullptr);
+    #endif
+        if (hPipe != INVALID_HANDLE_VALUE) return hPipe;
+    }
+    return INVALID_HANDLE_VALUE;
+}
+This way the rest of your sendFrame, drainFrame, and drainLoop functions stay completely untouched.
