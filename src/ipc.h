@@ -1,9 +1,22 @@
 #pragma once
 
 // fuck the ws2 library bro
-#include <winsock2.h>
-#include <windows.h>
-#pragma comment(lib, "ws2_32.lib")
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <windows.h>
+    #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <unistd.h>
+    #include <fcntl.h>
+    #include <aio.h>
+    #include <sys/socket.h>
+    #include <sys/un.h>
+    #define HANDLE int
+    #define INVALID_HANDLE_VALUE -1
+    #define GENERIC_READ O_RDONLY
+    #define GENERIC_WRITE O_WRONLY
+    #define CancelIo pthread_cancel
+    #define DWORD std::uint32_t
 
 #include <thread>
 #include <atomic>
