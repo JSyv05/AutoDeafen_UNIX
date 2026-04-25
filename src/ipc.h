@@ -22,7 +22,6 @@
     #define INVALID_HANDLE_VALUE -1
     #define GENERIC_READ O_RDONLY
     #define GENERIC_WRITE O_WRONLY
-    #define CancelIo pthread_cancel
     #define DWORD uint32_t
     #define INFINITE -1
     #define TRUE true

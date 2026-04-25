@@ -1,17 +1,42 @@
 #include "oauth.h"
-// #include "helpers.h"
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
+#ifdef _WIN32
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <winsock2.h>
+    #include <windows.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
+    using socket_t = SOCKET;
+    static void platformInit() { WSADATA d; WSAStartup(MAKEWORD(2, 2), &d); }
+    static void platformCleanup() { WSACleanup(); }
+    static bool invalidSocket(socket_t s) { return s == INVALID_SOCKET; }
+    static void closeSocket(socket_t s) { closesocket(s); }
+    static void setRecvTimeout(socket_t s, int ms) {
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&ms), sizeof(ms));
+    }
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <unistd.h>
+    #include <sys/time.h>
+    using socket_t = int;
+    static void platformInit() {}
+    static void platformCleanup() {}
+    static bool invalidSocket(socket_t s) { return s < 0; }
+    static void closeSocket(socket_t s) { close(s); }
+    static void setRecvTimeout(socket_t s, int ms) {
+        struct timeval tv{};
+        tv.tv_sec = ms / 1000;
+        tv.tv_usec = (ms % 1000) * 1000;
+        setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    }
 #endif
-
-#include <winsock2.h>
-#include <windows.h>
-#include <ws2tcpip.h>
-#pragma comment(lib, "ws2_32.lib")
 
 #include <iostream>
 #include <string>
+#include <cstring>
 
 #include <Geode/utils/web.hpp>
 #include <Geode/loader/Event.hpp>
@@ -26,18 +51,10 @@ namespace helpers {
     extern std::function<void(web::WebResponse)> webHandler;
 }
 
-size_t writeCallback(void* data, size_t size, size_t nmemb, void* userp) {
-    ((std::string*)userp)->append((char*)data, size * nmemb);
-    return size * nmemb;
-}
-
 void oauth::serverThread() {
+    platformInit();
 
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2,2), &wsaData);
-
-    // listen socket
-    auto lsock = socket(AF_INET, SOCK_STREAM, 0);
+    socket_t lsock = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -47,28 +64,26 @@ void oauth::serverThread() {
     bind(lsock, (sockaddr*)&addr, sizeof(addr));
     listen(lsock, 1);
 
-    // client socket
-    auto csock = accept(lsock, nullptr, nullptr);
-    if (csock == INVALID_SOCKET) {
-        closesocket(lsock);
-        WSACleanup();
+    socket_t csock = accept(lsock, nullptr, nullptr);
+    if (invalidSocket(csock)) {
+        closeSocket(lsock);
+        platformCleanup();
         return;
     }
 
-    int timeout = 10000;
-    setsockopt(csock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&timeout), sizeof(timeout));
+    setRecvTimeout(csock, 10000);
 
     char buffer[4096] = {};
     if (recv(csock, buffer, 4095, 0) <= 0) {
-        closesocket(csock);
-        closesocket(lsock);
-        WSACleanup();
+        closeSocket(csock);
+        closeSocket(lsock);
+        platformCleanup();
         return;
     }
 
     std::string request(buffer);
 
-    auto response =
+    const char* response =
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
             "<h2 style='font-family:sans-serif'>There may be an error?</h2>"
             "<p style='font-family:sans-serif'>There's no oauth code, but also no error from discord. Something went wrong.</p>";
@@ -79,7 +94,6 @@ void oauth::serverThread() {
         auto start = pos + 11;
         auto end = request.find(' ', start);
         std::string oauth_code = request.substr(start, end - start);
-        // geode::log("got code {} ", oauth_code);
 
         std::string params =
             "client_id=" + CLIENT_ID +
@@ -87,7 +101,6 @@ void oauth::serverThread() {
             "&grant_type=authorization_code"
             "&code=" + oauth_code +
             "&redirect_uri=http://localhost:8000";
-
 
         static TaskHolder<web::WebResponse> listener;
 
@@ -103,15 +116,12 @@ void oauth::serverThread() {
         );
 
         geode::prelude::log::info("sent auth");
-        // listener.setFilter(req.post("http://localhost:3000/auth"));
         response =
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
             "<h2 style='font-family:sans-serif'>All set!</h2>"
             "<p style='font-family:sans-serif'>You can close this tab and go back to Geometry dash!</p>";
 
     } else if (posBad != std::string::npos) {
-
-        // todo maybe substring the error code
         response =
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
             "<h2 style='font-family:sans-serif'>Discord Returned an OAuth error</h2>"
@@ -120,7 +130,7 @@ void oauth::serverThread() {
 
     send(csock, response, (int)strlen(response), 0);
 
-    closesocket(csock);
-    closesocket(lsock);
-    WSACleanup();
+    closeSocket(csock);
+    closeSocket(lsock);
+    platformCleanup();
 }

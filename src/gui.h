@@ -1,8 +1,21 @@
 #pragma once
 
-#include <windows.h>
-#include <shellapi.h>
+#ifdef _WIN32
+    #include <windows.h>
+    #include <shellapi.h>
+#else
+    #include <cstdlib>
+    #include <string>
+#endif
 #include <cmath>
+
+inline void openURL(const std::string& url) {
+#ifdef _WIN32
+    ShellExecuteA(nullptr, "open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+#else
+    system(("open \"" + url + "\"").c_str());
+#endif
+}
 
 #include <Geode/Geode.hpp>
 #include <Geode/ui/GeodeUI.hpp>
@@ -45,7 +58,7 @@ protected:
     CCLabelBMFont* clientId;
     CCLabelBMFont* clientSecret;
     void openTutorial(CCObject*) {
-        ShellExecuteA(nullptr, "open", "https://lynxdeer.xyz/autodeafen_setup.html", nullptr, nullptr, SW_SHOWNORMAL);
+        openURL("https://lynxdeer.xyz/autodeafen_setup.html");
         log::info("opened docs");
     }
     void pasteClientId(CCObject*) {
@@ -74,7 +87,7 @@ protected:
 
         log::info("next");
         oauth::startServer();
-        ShellExecuteA(nullptr, "open", ("https://discord.com/oauth2/authorize?client_id=" + CLIENT_ID + "&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000&scope=rpc.voice.write+rpc").c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        openURL("https://discord.com/oauth2/authorize?client_id=" + CLIENT_ID + "&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8000&scope=rpc.voice.write+rpc");
         AuthLayer::onClose(c);
 
 
@@ -152,7 +165,7 @@ namespace gui {
                 if (btn2) {
                     log::info("opening docs");
                     openPastingSetup();
-                    ShellExecuteA(nullptr, "open", "https://lynxdeer.xyz/autodeafen_setup.html", nullptr, nullptr, SW_SHOWNORMAL);
+                    openURL("https://lynxdeer.xyz/autodeafen_setup.html");
                     log::info("opened docs");
                 }
             }

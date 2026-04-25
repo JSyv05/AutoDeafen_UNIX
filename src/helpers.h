@@ -15,6 +15,7 @@ namespace helpers {
 
 
 	inline std::string getClipboardText() {
+#ifdef _WIN32
 		if (!OpenClipboard(nullptr)) return {};
 		auto h = GetClipboardData(CF_UNICODETEXT);
 		auto p = h ? static_cast<LPCWSTR>(GlobalLock(h)) : nullptr;
@@ -29,6 +30,15 @@ namespace helpers {
 
 		CloseClipboard();
 		return out;
+#else
+		std::string out;
+		FILE* pipe = popen("pbpaste", "r");
+		if (!pipe) return out;
+		char buf[256];
+		while (fgets(buf, sizeof(buf), pipe)) out += buf;
+		pclose(pipe);
+		return out;
+#endif
 	}
 
 	inline short getLevelType(GJGameLevel* level) {
